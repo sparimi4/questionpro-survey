@@ -32,7 +32,7 @@
 
         // Load GIFs from CSV (mocked here, replace with CSV fetching logic)
         function loadGifs() {
-            fetch('https://docs.google.com/spreadsheets/d/1YFZtooqjrBRjiZ2qkg7HGvMTvxxSNvfyKziYcvMP9L4/gviz/tq?tqx=out:csv')
+            fetch('https://docs.google.com/spreadsheets/d/1YFZtooqjrBRjiZ2qkg7HGvMTvxxSNvfyKziYcvMP9L4/edit?usp=sharing')
                 .then(response => response.text())
                 .then(data => {
                     let rows = data.split("\n");
