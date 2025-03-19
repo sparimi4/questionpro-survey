@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Cover Animation Survey</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #gif-container { margin: 20px auto; }
+        img { max-width: 80%; height: auto; border: 2px solid black; }
+        #next-button { margin-top: 20px; padding: 10px 20px; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <h2>Observe the Animation Carefully</h2>
+    <div id="gif-container"></div>
+    <button id="next-button" style="display:none;" onclick="goToNextPage()">Next</button>
+    
+    <script>
+        const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSaOzYui9wRjyWroG0InT4J4lETWEEBElu03aUmlrREmbBD-5NrYp76vMkTp1RLUWJXeSz5-0vESj9i/pub?output=csv"; // Replace with actual CSV link
+        const returnUrl = "https://asu.questionpro.com/a/SurveyPreview?type=previewQuestion&sectionID=4&currentSurveyPartID=2213418"; // Replace with actual return link
+        const userId = new URLSearchParams(window.location.search).get("user_id") || "guest";
+        
+        let gifData = [];
+        let shownGifs = new Set();
+        
+        function fetchCSV() {
+            fetch(csvUrl)
+                .then(response => response.text())
+                .then(parseCSV)
+                .catch(error => console.error("Error loading CSV:", error));
+        }
+        
+        function parseCSV(data) {
+            const rows = data.split("\n").slice(1);
+            rows.forEach(row => {
+                const [complexity, encoding, gifUrl] = row.split(",");
+                gifData.push({ complexity, encoding, gifUrl });
+            });
+            displayRandomGIF();
+        }
+        
+        function displayRandomGIF() {
+            const availableGifs = gifData.filter(gif => !shownGifs.has(gif.gifUrl));
+            if (availableGifs.length === 0) {
+                document.getElementById("next-button").style.display = "block";
+                return;
+            }
+            const randomIndex = Math.floor(Math.random() * availableGifs.length);
+            const selectedGif = availableGifs[randomIndex];
+            
+            shownGifs.add(selectedGif.gifUrl);
+            document.getElementById("gif-container").innerHTML = `<img src="${selectedGif.gifUrl}" alt="Stimulus GIF">`;
+            
+            setTimeout(displayRandomGIF, 5000); // Show next GIF after 5 seconds
+        }
+        
+        function goToNextPage() {
+            window.location.href = returnUrl;
+        }
+        
+        fetchCSV();
+    </script>
+</body>
+</html>
