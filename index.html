@@ -34,6 +34,30 @@
         overflow-y: auto; /* ✅ Allow content to scroll if too tall */
         width: 100%;       /* Optional: helps full-width layout on smaller screens */
     }   
+    .intro-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 2em 1em;
+        min-height: 100vh;
+        background-color: white;
+        text-align: center;
+    }
+
+    .intro-content {
+        max-width: 800px;
+        background: snow;
+        padding: 2em;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        margin-top: 1em;
+    }
+
+    .intro-logo {
+        height: 60px;
+        margin-bottom: 1em;
+    }
     #start-screen, #trial-screen, #end-screen, #demo-screen { display: none; }
     .center { 
         text-align: center; 
@@ -190,6 +214,15 @@
             margin-bottom: 0.5em;
         }
     }
+    .info-bar {
+        background-color: #e0f0ff; /* light blue background */
+        padding: 12px 16px;
+        margin: 8px 0;
+        border-left: 6px solid #0077cc; /* blue accent bar */
+        font-weight: 500;
+        border-radius: 4px;
+        color: #333;
+    }
   </style>
 </head>
 <body>
@@ -200,10 +233,38 @@
 </div>
 
 <div class="main-content">
-
+    <div id="intro-screen" class="intro-container">
+        <img src="ASU-logo.png" alt="ASU Logo" class="intro-logo">
+        <div class="intro-content">
+            <h2>Welcome to the Cloud Cover Study</h2>
+            <p>
+                In this study, you will be viewing a series of short animated visualizations that show cloud cover over time. Each animation lasts approximately 7.2 seconds and will loop continuously while you're on the page.
+            </p>
+            <p>
+                <strong>How to Read the Animations:</strong>
+            </p>
+            <div class="info-bar">White areas indicate more cloud cover</div>
+            <div class="info-bar">Blue areas indicate less or no cloud cover</div>
+    
+            <p><strong>What You Will Be Asked:</strong></p>
+            <p>After watching each animation, you will answer one question. There are three possible types of questions:</p>
+    
+            <div class="info-bar"><strong>Quadrant selection:</strong> Choose the quadrant (Top Left, Top Right, Bottom Left, Bottom Right) that best answers the question.</div>
+            <div class="info-bar"><strong>Direction selection:</strong> Identify the direction the clouds are moving (Upwards, Downwards, Leftwards, Rightwards).</div>
+            <div class="info-bar"><strong>Click selection:</strong> Click on the part of the animation that best answers the question.</div>
+    
+            <p><strong>Important:</strong> You must watch the animation at least once before you can respond. The answer options will remain disabled until the animation completes its first loop. You’re welcome to watch the animation as many times as you'd like before answering.</p>
+            
+            <p>Click "Continue" to begin the study.</p>
+            <div class="center">
+                <button onclick="showStartScreen()">Continue</button>
+            </div>
+        </div>
+    </div>
+       
     <div id="start-screen">
-        <h2>Welcome to the Cloud Cover Visualization Survey</h2>
-        <p>Please enter your ASU ID to begin:</p>
+        <h2>To Start the Cloud Cover Visualization Survey</h2>
+        <p>Please enter your ASU ID:</p>
         <input type="text" id="asuid" placeholder="ASU ID">
         <div class="center">
             <button onclick="startSurvey()">Start Survey</button>
@@ -263,8 +324,8 @@
     };
 
     const QUESTION_TYPES = [
-    { type: 'cloudiest_region', prompt: 'Click on the region / point on the GIF that you think is the most cloudy.' },
-    { type: 'clearest_region', prompt: 'Click on the region / point on the GIF that  you think is the least cloudy.' },
+    { type: 'cloudiest_region', prompt: 'Click on the region you think is the most cloudy.' },
+    { type: 'clearest_region', prompt: 'Click on the region you think is the least cloudy.' },
     { type: 'most_cloudy_quadrant', prompt: 'Select the quadrant that you think is the most cloudy.' },
     { type: 'least_cloudy_quadrant', prompt: 'Select the quadrant you think is the least cloudy.' },
     { type: 'cloud_movement_direction', prompt: 'Which direction are the clouds moving? (Up / Down / Left / Right)' },
@@ -275,10 +336,10 @@
     const complexities = ['LC', 'MC', 'HC'];
     const binnings = ['0.0', '2.3', '4.6', '6.9', '9.2'];
     const quadrantNames = {
-        Q1: "Top Left [ 1 x 1 ]",
-        Q2: "Top Right [ 1 x 2 ]",
-        Q3: "Bottom Left [ 2 x 1 ]",
-        Q4: "Bottom Right [ 2 x 2 ]"
+        Q1: "Top Left",
+        Q2: "Top Right",
+        Q3: "Bottom Left",
+        Q4: "Bottom Right"
     };
     const trialGIFs = {
         LC: [],
@@ -324,78 +385,69 @@
         const allQuestions = [...QUESTION_TYPES].filter(q => !q.type.startsWith("attention_check")); // 5 question types
         const usedGIFs = new Set(); // to track uniqueness
 
-        // Helper: get 5 random gifs for a given complexity
-        // function getRandomGifsForComplexity(complexity) {
-        //     const gifs = Object.keys(trialGIFs)
-        //         .filter(key => key.startsWith(complexity))
-        //         .map(key => trialGIFs[key])
-        //         .flat();
+        const complexityCounts = {
+        LC: 8,
+        MC: 8,
+        HC: 9
+    };
 
-        //     return getRandomItems(gifs, 5);
-        // }
+    let allGifs = [];
 
-        function pickUniqueGIFs(gifPool) {
-            const shuffled = gifPool.slice().sort(() => 0.5 - Math.random());
-            const selected = [];
-            for (let gif of shuffled) {
-                if (!usedGIFs.has(gif)) {
-                    selected.push(gif);
-                    usedGIFs.add(gif);
-                }
-                if (selected.length === 5) break;
-            }
-            return selected;
-        }
-
-        // Generate GIFs by complexity
-        const lcGifs = getRandomItems(trialGIFs["LC"], 5);
-        const mcGifs = getRandomItems(trialGIFs["MC"], 5);
-        const hcGifs = getRandomItems(trialGIFs["HC"], 5);
-
-        const allGifs = [...lcGifs, ...mcGifs, ...hcGifs];
-        const allTrials = [];
-
-        // Shuffle and assign question types
-        const questionsShuffled = [];
-        for (let i = 0; i < 3; i++) {
-            questionsShuffled.push(...getRandomItems(allQuestions, 5));
-        }
-
-        const normalTrials = [];
-        for (let i = 0; i < 15; i++) {
-            normalTrials.push({
-                question: questionsShuffled[i].type,
-                prompt: questionsShuffled[i].prompt,
-                gif: allGifs[i]
-            });
-        }
-
-        // Attention checks
-        const attChecks = [
-            {
-                question: "attention_check_1",
-                prompt: "Please select the quadrant with largest cloud cover in the GIF.",
-                gif: "attention_check_1.gif",
-                correctAnswer: "Q3"
-            },
-            {
-                question: "attention_check_2",
-                prompt: "Please select the quadrant with largest cloud cover in the GIF.",
-                gif: "attention_check_2.gif",
-                correctAnswer: "Q3"
-            }
-        ];
-
-        // Shuffle which attention check goes in which position
-        const shuffledAttChecks = attChecks.sort(() => 0.5 - Math.random());
-
-        // Inject attention checks at position 5 and 10 (index 4 and 9)
-        normalTrials.splice(4, 0, shuffledAttChecks[0]);
-        normalTrials.splice(9, 0, shuffledAttChecks[1]);
-
-        return normalTrials;
+    // Select unique GIFs for each complexity
+    for (let complexity of complexities) {
+        const selected = getRandomItems(trialGIFs[complexity], complexityCounts[complexity]);
+        allGifs.push(...selected);
     }
 
+    // Shuffle all GIFs
+    allGifs = allGifs.sort(() => 0.5 - Math.random());
+
+    // Build 25 trials, 5 per question type
+    const questionTypeTrials = [];
+    allQuestions.forEach(qType => {
+        const prompt = qType.prompt;
+        const type = qType.type;
+        const selectedGifs = allGifs.splice(0, 5);
+        selectedGifs.forEach(gif => {
+            questionTypeTrials.push({
+                question: type,
+                prompt: prompt,
+                gif: gif
+            });
+        });
+    });
+
+    // Shuffle the 25 trials
+    const shuffledNormalTrials = questionTypeTrials.sort(() => 0.5 - Math.random());
+
+    // Attention checks
+    const attChecks = [
+        {
+            question: "attention_check_1",
+            prompt: "Please select the quadrant with largest cloud cover in the GIF.",
+            gif: "attention_check_1.gif",
+            correctAnswer: "Q3"
+        },
+        {
+            question: "attention_check_2",
+            prompt: "Please select the quadrant with largest cloud cover in the GIF.",
+            gif: "attention_check_2.gif",
+            correctAnswer: "Q3"
+        }
+    ];
+
+    // Shuffle attention checks and insert at 6th and 18th position (index 5 and 17)
+    const shuffledAttChecks = attChecks.sort(() => 0.5 - Math.random());
+    shuffledNormalTrials.splice(5, 0, shuffledAttChecks[0]);
+    shuffledNormalTrials.splice(17, 0, shuffledAttChecks[1]);
+
+    return shuffledNormalTrials; // total = 27 trials (25 + 2 checks)
+    }
+
+    function showStartScreen() {
+        document.getElementById('intro-screen').style.display = 'none';
+        document.getElementById('start-screen').style.display = 'block';
+    }
 
     function startSurvey() {
         const asuidInput = document.getElementById('asuid').value;
@@ -410,13 +462,16 @@
         showTrial();
     }
 
+    let clickEnabled = false;
+
     function showTrial() {
         const trial = trials[trialIndex];
         startTime = Date.now();
+
         document.getElementById('trial-screen').style.display = 'block';
         updateProgressBar();
 
-        document.getElementById('trial-number').textContent = trialIndex + 1;
+        document.getElementById('trial-number').textContent = `${getVisibleProgressIndex() + 1} of 25`;
         document.getElementById('question-prompt').innerHTML = `<strong>Question:</strong> ${trial.prompt}`;
 
         // const gif = document.getElementById('cloud-gif');
@@ -426,7 +481,7 @@
 
         const container = document.querySelector('.gif-container');
 
-        // 🧽 Clear previous marker and loader/gif
+        // Clear previous marker and loader/gif
         container.innerHTML = `
             <div id="gif-loader" class="loader-box" style="display: block;">Loading GIF for the question ...</div>
             <img id="cloud-gif" src="" alt="Cloud Animation" style="display:none;" onload="hideLoader()">
@@ -435,10 +490,13 @@
         const gif = document.getElementById('cloud-gif');
         const loader = document.getElementById('gif-loader');
 
+        const clickQuestionTypes = ['cloudiest_region', 'clearest_region'];
+        
+        gif.style.cursor = clickQuestionTypes.includes(trial.question) ? 'crosshair' : 'default';
+
         gif.src = `https://raw.githubusercontent.com/sparimi4/git-survey-hosting/main/Survey%20Data/${trial.gif}`;
-        gif.onload = () => {
-            hideLoader();
-        };
+        // gif.src = `https://raw.githubusercontent.com/sparimi4/git-survey-hosting/main/Survey%20Data/${trial.gif}?t=${Date.now()}`;
+        
         const interaction = document.getElementById('interaction-area');
         interaction.innerHTML = ''; // Clear
 
@@ -450,7 +508,7 @@
         if (trial.question === 'cloud_movement_direction') {
             const directionWrapper = document.createElement('div');
             directionWrapper.id = 'direction-options';
-            ['Upwards', 'Downwards', 'Towards Left', 'Towards Right'].forEach(dir => {
+            ['Upwards', 'Downwards', 'Leftwards', 'Rightwards'].forEach(dir => {
             const label = document.createElement('label');
             label.style.marginRight = '1em';
             const input = document.createElement('input');
@@ -515,51 +573,164 @@
         }
         else {
             const container = document.querySelector('.gif-container');
+            
+            // clickEnabled = false;
+            if (clickQuestionTypes.includes(trial.question)) {
+                gif.onclick = (e) => {
+                    // const rect = gif.getBoundingClientRect();
+                    // const x = Math.round(e.offsetX);
+                    // const y = Math.round(e.offsetY);
+                    
+                    // if (!clickEnabled) {
+                    //     alert("Please view at least one loop before answering.");
+                    //     return;
+                    // }
 
-            gif.onclick = (e) => {
-                const rect = gif.getBoundingClientRect();
-                // const x = Math.round(e.clientX - rect.left);
-                // const y = Math.round(e.clientY - rect.top);
-                const x = Math.round(e.offsetX);
-                const y = Math.round(e.offsetY);
-                const elapsed = (Date.now() - startTime) / 1000;
-                const loops = Math.floor(elapsed / loopDuration);
+                    
+                    // const elapsed = (Date.now() - startTime) / 1000;
+                    // const loops = Math.floor(elapsed / loopDuration);
 
-                if (loops < 1) {
-                    alert("Please watch at least one full loop before clicking.");
+                    // // Save response data
+                    // trial.clickX = x;
+                    // trial.clickY = y;
+                    // trial.responseTime = elapsed.toFixed(2);
+                    // trial.loops = loops;
+                    // trial.trialNumber = trialIndex + 1;
+                    // trial.participant = participantID;
+
+                    // const quadrant = getQuadrant(x, y, rect.width, rect.height);
+                    // trial.quadrantClick = quadrant;
+
+                    // // Remove old marker if exists
+                    // const container = document.querySelector('.gif-container');
+                    // const oldMarker = container.querySelector('.click-marker');
+                    // if (oldMarker) oldMarker.remove();
+
+                    // // Add new marker
+                    // const marker = document.createElement('div');
+                    // marker.className = 'click-marker';
+                    // marker.style.left = `${(x / gif.clientWidth) * 100}%`;
+                    // marker.style.top = `${(y / gif.clientHeight) * 100}%`;
+                    // marker.style.transform = "translate(-50%, -50%)";
+                    // container.appendChild(marker);
+
+                    const rect = gif.getBoundingClientRect();
+                    const x = Math.round(e.offsetX);
+                    const y = Math.round(e.offsetY);
+
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const loops = Math.floor(elapsed / loopDuration);
+
+                    // Show early-click message
+                    // if (!clickEnabled) {
+                    //     alert("Please wait for the animation to loop once (7.2s) before making your selection.");
+                    //     console.log(`Clicked too early at: (${x}, ${y})`);
+                    //     return;
+                    // }
+                    
+                    if (loops < 1) {
+                    alert("Please watch at least one full loop before making your selection.");
                     return;
-                }
+                    }
+                    
+                    const quadrant = getQuadrant(x, y, rect.width, rect.height);
 
-                // Save common click info
-                trial.clickX = x;
-                trial.clickY = y;
-                trial.responseTime = elapsed.toFixed(2);
-                trial.loops = loops;
-                trial.trialNumber = trialIndex + 1;
-                trial.participant = participantID;
+                    const container = document.querySelector('.gif-container');
+                    const oldMarker = container.querySelector('.click-marker');
+                    if (oldMarker) oldMarker.remove();
 
-                const quadrant = getQuadrant(x, y, rect.width, rect.height);
-                trial.quadrantClick = quadrant;
+                    const marker = document.createElement('div');
+                    marker.className = 'click-marker';
+                    marker.style.left = `${(x / gif.clientWidth) * 100}%`;
+                    marker.style.top = `${(y / gif.clientHeight) * 100}%`;
+                    marker.style.transform = "translate(-50%, -50%)";
+                    container.appendChild(marker);
 
-                const marker = document.createElement('div');
-                marker.className = 'click-marker';
-                // marker.style.left = `${(x / gif.width) * 100}%`;
-                // marker.style.top = `${(y / gif.height) * 100}%`;
-                marker.style.left = `${(x / gif.clientWidth) * 100}%`;
-                marker.style.top = `${(y / gif.clientHeight) * 100}%`;
-                marker.style.transform = "translate(-50%, -50%)";
-                container.appendChild(marker);
-            }
+                    // Save data to the trial object only if click is valid
+                    const trial = trials[trialIndex];
+                    trial.clickX = x;
+                    trial.clickY = y;
+                    trial.responseTime = elapsed.toFixed(2);
+                    trial.loops = loops;
+                    trial.trialNumber = trialIndex + 1;
+                    trial.participant = participantID;
+                    trial.quadrantClick = quadrant;
+                };
+
+            // Enable click after 1 loop (7.2 sec)
+            setTimeout(() => {
+                clickEnabled = true;
+            }, loopDuration * 1000);
+
             // Add quadrant confirmation dropdown if needed
             // if (trial.question.includes('quadrant')) {
             
             // gif.onclick = null; // prevent multiple clicks
             // };
+            };
         }
+        disableInteractions();
+        setTimeout(() => {
+            enableInteractions();
+        }, loopDuration * 1000);
 
         reminderTimeout = setTimeout(() => {
             alert("You've been on this question for 10 minutes. Please respond.");
         }, 10 * 60 * 1000);
+    }
+
+    function disableInteractions() {
+        const trial = trials[trialIndex];
+
+        if (trial.question === 'cloud_movement_direction') {
+            const radios = document.querySelectorAll('input[name="direction"]');
+            radios.forEach(r => r.disabled = true);
+        } else if (
+            trial.question === 'most_cloudy_quadrant' || 
+            trial.question === 'least_cloudy_quadrant' || 
+            trial.question.startsWith("attention_check")
+        ) {
+            const radios = document.querySelectorAll('input[type="radio"]');
+            radios.forEach(r => r.disabled = true);
+        } 
+        // else {
+        //     const gif = document.getElementById('cloud-gif');
+        //     gif.style.pointerEvents = 'none';
+        // }
+    }
+
+    function enableInteractions() {
+        const trial = trials[trialIndex];
+
+        if (trial.question === 'cloud_movement_direction') {
+            const radios = document.querySelectorAll('input[name="direction"]');
+            radios.forEach(r => r.disabled = false);
+        } else if (
+            trial.question === 'most_cloudy_quadrant' || 
+            trial.question === 'least_cloudy_quadrant' || 
+            trial.question.startsWith("attention_check")
+        ) {
+            const radios = document.querySelectorAll('input[type="radio"]');
+            radios.forEach(r => r.disabled = false);
+        } 
+        // else {
+        //     const gif = document.getElementById('cloud-gif');
+        //     gif.style.pointerEvents = 'auto';
+        // }
+    }
+
+    function getVisibleProgressIndex() {
+        let count = 0;
+        for (let i = 0; i < trialIndex; i++) {
+            if (!trials[i].question.startsWith('attention_check')) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    function getVisibleTrials() {
+        return trials.filter(trial => !trial.question.startsWith('attention_check'));
     }
 
     function updateProgressBar() {
@@ -567,21 +738,29 @@
         progressBar.innerHTML = ''; // Clear existing
 
         for (let i = 0; i < trials.length; i++) {
+            const progressBar = document.getElementById('progress-bar');
+        progressBar.innerHTML = ''; // Clear existing
+
+        const visibleTrials = getVisibleTrials(); // only non-attention-check trials
+        const currentVisibleIndex = getVisibleProgressIndex();
+
+        for (let i = 0; i < visibleTrials.length; i++) {
             const progressItem = document.createElement('div');
             progressItem.classList.add('progress-circle');
 
-            if (i < trialIndex) {
-            progressItem.classList.add('completed');
-            progressItem.textContent = "✔";
-            } else if (i === trialIndex) {
-            progressItem.classList.add('current');
-            progressItem.textContent = `Q${i + 1}`;
+            if (i < currentVisibleIndex) {
+                progressItem.classList.add('completed');
+                progressItem.textContent = "✔";
+            } else if (i === currentVisibleIndex) {
+                progressItem.classList.add('current');
+                progressItem.textContent = `Q${i + 1}`;
             } else {
-            progressItem.classList.add('remaining');
-            progressItem.textContent = `Q${i + 1}`;
+                progressItem.classList.add('remaining');
+                progressItem.textContent = `Q${i + 1}`;
             }
 
             progressBar.appendChild(progressItem);
+            }
         }
     }
 
@@ -642,12 +821,8 @@
             // Attention check logic
             const correct = trial.correctAnswer || "Q3";
             attentionCheckRetries[trial.question] = (attentionCheckRetries[trial.question] || 0) + 1;
+            trial.attentionCorrect = selected === correct;
 
-            if (selected !== correct && attentionCheckRetries[trial.question] <= 5) {
-                alert("That’s not correct. Please pay attention to the survey and try again.");
-                showTrial(); // Reload current trial
-                return;
-            }
         } else {
             if (!trial.clickX || !trial.clickY) {
                 alert("Please click on the image to make your selection.");
@@ -680,16 +855,28 @@
         link.download = `cloud_survey_${participantID}.csv`;
         link.click();
     }
-    document.getElementById('start-screen').style.display = 'block';
+    // document.getElementById('start-screen').style.display = 'block';
+    document.getElementById('intro-screen').style.display = 'block';
 </script>
 
 <script>
     async function submitToFirebase() {
+        // Get attention checks
+        const attentionChecks = responses.filter(r => r.question.startsWith("attention_check"));
+        const incorrectCount = attentionChecks.filter(r => !r.attentionCorrect).length;
+
+        if (incorrectCount >= 2) {
+            alert("You failed both attention checks. Your responses will not be recorded.");
+            document.getElementById('trial-screen').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'block';
+            return;
+        }
+
         try {
             await db.collection("survey_responses").add({
-            participant: participantID,
-            timestamp: new Date().toISOString(),
-            responses: responses
+                participant: participantID,
+                timestamp: new Date().toISOString(),
+                responses: responses
             });
             document.getElementById('trial-screen').style.display = 'none';
             document.getElementById('end-screen').style.display = 'block';
