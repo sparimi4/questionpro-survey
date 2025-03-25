@@ -257,21 +257,28 @@
     let responses = [];
     let reminderTimeout;
 
+    let attentionCheckRetries = {
+        attention_check_1: 0,
+        attention_check_2: 0
+    };
+
     const QUESTION_TYPES = [
-    { type: 'cloudiest_region', prompt: 'Click on the region you think is the cloudiest.' },
-    { type: 'clearest_region', prompt: 'Click on the region you think is the least cloudy.' },
-    { type: 'most_cloudy_quadrant', prompt: 'Click on the quadrant you think is the most cloudy.' },
-    { type: 'least_cloudy_quadrant', prompt: 'Click on the quadrant you think is the least cloudy.' },
+    { type: 'cloudiest_region', prompt: 'Click on the region / point on the GIF that you think is the most cloudy.' },
+    { type: 'clearest_region', prompt: 'Click on the region / point on the GIF that  you think is the least cloudy.' },
+    { type: 'most_cloudy_quadrant', prompt: 'Select the quadrant that you think is the most cloudy.' },
+    { type: 'least_cloudy_quadrant', prompt: 'Select the quadrant you think is the least cloudy.' },
     { type: 'cloud_movement_direction', prompt: 'Which direction are the clouds moving? (Up / Down / Left / Right)' },
+    { type: 'attention_check_1', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
+    { type: 'attention_check_2', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
     ];
 
     const complexities = ['LC', 'MC', 'HC'];
     const binnings = ['0.0', '2.3', '4.6', '6.9', '9.2'];
     const quadrantNames = {
-        Q1: "Top Left",
-        Q2: "Top Right",
-        Q3: "Bottom Left",
-        Q4: "Bottom Right"
+        Q1: "Top Left [ 1 x 1 ]",
+        Q2: "Top Right [ 1 x 2 ]",
+        Q3: "Bottom Left [ 2 x 1 ]",
+        Q4: "Bottom Right [ 2 x 2 ]"
     };
     const trialGIFs = {
         LC: [],
@@ -314,7 +321,7 @@
     }
 
     function generateTrials() {
-        const allQuestions = [...QUESTION_TYPES]; // 5 question types
+        const allQuestions = [...QUESTION_TYPES].filter(q => !q.type.startsWith("attention_check")); // 5 question types
         const usedGIFs = new Set(); // to track uniqueness
 
         // Helper: get 5 random gifs for a given complexity
@@ -348,26 +355,45 @@
         const allGifs = [...lcGifs, ...mcGifs, ...hcGifs];
         const allTrials = [];
 
-        // Randomize question types for all 15 gifs
+        // Shuffle and assign question types
         const questionsShuffled = [];
-
-        // Fill 3 rounds of 5 shuffled question types
         for (let i = 0; i < 3; i++) {
-            const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
-            questionsShuffled.push(...shuffled);
+            questionsShuffled.push(...getRandomItems(allQuestions, 5));
         }
 
-        // Create trial objects
+        const normalTrials = [];
         for (let i = 0; i < 15; i++) {
-            allTrials.push({
+            normalTrials.push({
                 question: questionsShuffled[i].type,
                 prompt: questionsShuffled[i].prompt,
                 gif: allGifs[i]
             });
         }
-        console.log("GIFs selected:", allGifs);
-        // Final shuffle for full trial randomization
-        return allTrials.sort(() => 0.5 - Math.random());
+
+        // Attention checks
+        const attChecks = [
+            {
+                question: "attention_check_1",
+                prompt: "Please select the quadrant with largest cloud cover in the GIF.",
+                gif: "attention_check_1.gif",
+                correctAnswer: "Q3"
+            },
+            {
+                question: "attention_check_2",
+                prompt: "Please select the quadrant with largest cloud cover in the GIF.",
+                gif: "attention_check_2.gif",
+                correctAnswer: "Q3"
+            }
+        ];
+
+        // Shuffle which attention check goes in which position
+        const shuffledAttChecks = attChecks.sort(() => 0.5 - Math.random());
+
+        // Inject attention checks at position 5 and 10 (index 4 and 9)
+        normalTrials.splice(4, 0, shuffledAttChecks[0]);
+        normalTrials.splice(9, 0, shuffledAttChecks[1]);
+
+        return normalTrials;
     }
 
 
@@ -424,7 +450,7 @@
         if (trial.question === 'cloud_movement_direction') {
             const directionWrapper = document.createElement('div');
             directionWrapper.id = 'direction-options';
-            ['Up', 'Down', 'Left', 'Right'].forEach(dir => {
+            ['Upwards', 'Downwards', 'Towards Left', 'Towards Right'].forEach(dir => {
             const label = document.createElement('label');
             label.style.marginRight = '1em';
             const input = document.createElement('input');
@@ -437,7 +463,7 @@
             });
             interaction.prepend(directionWrapper);
         } 
-        else if (trial.question === 'most_cloudy_quadrant') {
+        else if (trial.question === 'most_cloudy_quadrant' || trial.question.startsWith('attention_check')) {
             const questionContainer = document.createElement('div');
             questionContainer.style.marginTop = '1em';
 
@@ -603,6 +629,25 @@
             trial.loops = Math.floor((Date.now() - startTime) / (loopDuration));
             trial.trialNumber = trialIndex + 1;
             trial.participant = participantID;
+        } else if (trial.question.startsWith("attention_check")) {
+            const selected = document.querySelector('input[name="most-cloudy"]:checked')?.value;
+            if (!selected) {
+                alert("Please select a quadrant.");
+                return;
+            }
+            trial.selectedMostQuadrant = selected;
+            trial.responseTime = elapsed.toFixed(2);
+            trial.loops = loops;
+
+            // Attention check logic
+            const correct = trial.correctAnswer || "Q3";
+            attentionCheckRetries[trial.question] = (attentionCheckRetries[trial.question] || 0) + 1;
+
+            if (selected !== correct && attentionCheckRetries[trial.question] <= 5) {
+                alert("That’s not correct. Please pay attention to the survey and try again.");
+                showTrial(); // Reload current trial
+                return;
+            }
         } else {
             if (!trial.clickX || !trial.clickY) {
                 alert("Please click on the image to make your selection.");
