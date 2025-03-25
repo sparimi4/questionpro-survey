@@ -1,127 +1,660 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Cover Survey</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.dom.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
-    <style>
-        body { text-align: center; font-family: Arial, sans-serif; }
-        canvas { border: 1px solid black; }
-        #gif-container { position: relative; display: inline-block; }
-        #next-btn, #return-btn { margin-top: 20px; display: none; padding: 10px 20px; font-size: 16px; }
-    </style>
+  <meta charset="UTF-8">
+  <title>Cloud Visualization Survey</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* body { font-family: Arial, sans-serif; padding: 2em; } */
+    body {
+        font-family: Arial, sans-serif; 
+        display: flex; 
+        flex-direction: column;
+        margin: 0; 
+        height: 100vh;
+        overflow-x: hidden;}
+    /* .main-content {
+        padding: 2em; 
+        flex: 1; 
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;} */
+    .main-content {
+        padding: 2em;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start; /* ✅ Changed from center to allow scrollable flow */
+        text-align: center;
+        overflow-y: auto; /* ✅ Allow content to scroll if too tall */
+        width: 100%;       /* Optional: helps full-width layout on smaller screens */
+    }   
+    #start-screen, #trial-screen, #end-screen, #demo-screen { display: none; }
+    .center { 
+        text-align: center; 
+        margin-top: 2em; }
+    .gif-container { 
+        position: relative; 
+        display: inline-block; }
+    #cloud-gif { 
+        max-width: 600px; 
+        height: auto; 
+        cursor: crosshair; }
+    .hidden { 
+        display: none; }
+    button { 
+        padding: 0.5em 1em; 
+        margin-top: 1em;
+        background-color: #151B54;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;}
+    button:hover {
+        opacity: 0.9;}
+    /* Progress Bar Styles */
+    .asu-logo {
+        height: 40px;         /* Adjust height as needed */
+        margin-right: 1em;    /* Space between logo and progress circles */
+    }
+    .progress-bar-container {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        width: 100%;
+        background-color: #8C1D40;
+        padding: 1em;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .progress-circle {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 30px;
+        font-size: 14px;
+        color: black;
+        margin: 5px;
+        transition: all 0.3s ease;
+    }
+    .completed {
+        background-color: #568203;
+    }
+    .current {
+        background-color: #FFC627;
+        color: black;
+    }
+    .remaining {
+        background-color: #808080;
+        border: 1px solid #ccc;
+    }
+    .click-marker {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background-color: yellow;
+        border: 2px solid black;
+        border-radius: 50%;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+    }
+    .gif-container {
+        position: relative;
+        display: inline-block;
+        width: 600px;  /* Optional: match the max width of your GIF */
+        /* height: 400px; 👈 Add this based on your GIF dimensions */
+        background-color: #f4f4f4; /* Optional: light gray background to mark image zone */
+        border-radius: 8px; /* Optional */
+        box-shadow: 0 0 4px rgba(0,0,0,0.1); /* Optional */
+    }
+    #cloud-gif {
+        max-width: 100%;
+        height: auto;
+        display: block;
+    }
+    .quadrant-grid {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        /* z-index: 2; */
+        pointer-events: none; /* Prevents intercepting clicks unless overridden */
+    }
+
+    .quadrant {
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        pointer-events: auto; /* Makes individual quadrants clickable */
+        background-color: rgba(255, 255, 255, 0); /* Transparent by default */
+    }
+
+    .quadrant:hover {
+        background-color: rgba(255, 255, 0, 0.2);
+    }
+    .radio-group {
+        margin-top: 1em;
+        display: flex;
+        justify-content: center;
+        gap: 1em;
+        flex-wrap: wrap;
+    }
+    .radio-group label {
+        margin-right: 1em;
+    }
+    @media (max-width: 768px) {
+      .progress-bar-container {
+        flex-wrap: wrap;
+        padding: 0.5em;
+      }
+      .progress-circle {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+        line-height: 26px;
+      }
+      .main-content {
+        padding: 1em;
+      }
+    }
+    .loader-box {
+        display: none;
+        position: relative;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #555; /* Grey background */
+        color: white;
+        padding: 0.5em 1em;
+        border-radius: 5px;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3); /* optional shadow */
+    }
+    @media (max-width: 768px) {
+        .asu-logo {
+            height: 30px;
+            margin-bottom: 0.5em;
+        }
+    }
+  </style>
 </head>
 <body>
-    <h2>Select the area with the highest cloud cover</h2>
-    <div id="gif-container">
-        <canvas id="gifCanvas"></canvas>
+
+<div class="progress-bar-container" id="progress-bar">
+    <img src="ASU-logo.png" alt="ASU Logo" class="asu-logo">
+    <!-- Progress items dynamically generated here -->
+</div>
+
+<div class="main-content">
+
+    <div id="start-screen">
+        <h2>Welcome to the Cloud Cover Visualization Survey</h2>
+        <p>Please enter your ASU ID to begin:</p>
+        <input type="text" id="asuid" placeholder="ASU ID">
+        <div class="center">
+            <button onclick="startSurvey()">Start Survey</button>
+        </div>
     </div>
-    <button id="next-btn" onclick="nextGif()">Next</button>
-    <button id="return-btn" onclick="returnToSurvey()">Completed 2 turns, return to survey</button>
-    
-    <script>
-        let gifList = [];
-        let complexityLevels = ['Low', 'Medium', 'High'];
-        let gifIndex = 0;
-        let loopCount = 0;
-        let selectedRegions = [];
-        let surveyReturnURL = "https://asu.questionpro.com/a/SurveyPreview?type=previewQuestion&sectionID=6&currentSurveyPartID=2213909"; // Replace with actual survey return URL
 
-        // Load GIFs from CSV (mocked here, replace with CSV fetching logic)
-        function loadGifs() {
-            fetch('https://docs.google.com/spreadsheets/d/1YFZtooqjrBRjiZ2qkg7HGvMTvxxSNvfyKziYcvMP9L4/edit?usp=sharing')
-                .then(response => response.text())
-                .then(data => {
-                    let rows = data.split("\n");
-                    rows.forEach(row => {
-                        let columns = row.split(",");
-                        gifList.push({ url: columns[0], complexity: columns[1] });
-                    });
-                    gifList = shuffle(gifList);
-                    loadGif();
-                });
+    <div id="trial-screen">
+        <h3>Trial <span id="trial-number"></span>/15</h3>
+        <p id="question-prompt"><strong>Question:</strong></p>
+        <div class="gif-container">
+            <div id="gif-loader">Loading GIF for the question ...</div>
+            <img id="cloud-gif" src="" alt="Cloud Animation" onload="hideLoader()">
+        </div>
+        <div class="center" id="interaction-area">
+          <!-- Confirmation dropdown or direction selector goes here -->
+          <button onclick="submitResponse()">Next</button>
+        </div>
+    </div>
+
+    <div id="end-screen">
+        <h2>Thank you for participating!</h2>
+        <p>Your responses have been securely submitted.</p>
+        <!-- <p>You can now download your response data.</p>
+        <div class="center">
+            <button onclick="downloadCSV()">Download CSV</button>
+        </div> -->
+    </div>
+
+</div>
+
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBuOEzTSSXabU0eFbPfddaW5RYtapd-rBM",
+      authDomain: "calcium-firefly-441800-b9.firebaseapp.com",
+      databaseURL: "https://calcium-firefly-441800-b9-default-rtdb.firebaseio.com",
+      projectId: "calcium-firefly-441800-b9",
+      storageBucket: "calcium-firefly-441800-b9.firebasestorage.app",
+      messagingSenderId: "736906788326",
+      appId: "1:736906788326:web:e14c3c7ae4739a8b7dea27"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+</script>
+
+<script>
+    const loopDuration = 7.2; // in seconds
+    let startTime;
+    let participantID = "";
+    let trialIndex = 0;
+    let trials = [];
+    let responses = [];
+    let reminderTimeout;
+
+    const QUESTION_TYPES = [
+    { type: 'cloudiest_region', prompt: 'Click on the region you think is the cloudiest.' },
+    { type: 'clearest_region', prompt: 'Click on the region you think is the least cloudy.' },
+    { type: 'most_cloudy_quadrant', prompt: 'Click on the quadrant you think is the most cloudy.' },
+    { type: 'least_cloudy_quadrant', prompt: 'Click on the quadrant you think is the least cloudy.' },
+    { type: 'cloud_movement_direction', prompt: 'Which direction are the clouds moving? (Up / Down / Left / Right)' },
+    ];
+
+    const complexities = ['LC', 'MC', 'HC'];
+    const binnings = ['0.0', '2.3', '4.6', '6.9', '9.2'];
+    const quadrantNames = {
+        Q1: "Top Left",
+        Q2: "Top Right",
+        Q3: "Bottom Left",
+        Q4: "Bottom Right"
+    };
+    const trialGIFs = {
+        LC: [],
+        MC: [],
+        HC: []
+    };
+    for (let c of complexities) {
+        for (let b of binnings) {
+        for (let i = 1; i <= 5; i++) {
+            const fname = `${c}_${b}_${i}_rot0.gif`;
+            if (!trialGIFs[c]) trialGIFs[c] = [];
+            trialGIFs[c].push(fname);
         }
+        }
+    }
 
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
+    function hideLoader() {
+        const loader = document.getElementById('gif-loader');
+        const gif = document.getElementById('cloud-gif');
+        
+        if (loader) loader.style.display = 'none';
+        if (gif) gif.style.display = 'block'; // Show the GIF once loaded
+    }
+
+    function getRandomItems(arr, count) {
+        let shuffled = arr.slice().sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, count);
+    }
+
+    function getQuadrant(x, y, gifWidth, gifHeight) {
+        if (x < gifWidth / 2 && y < gifHeight / 2) return 'Q1'; // Top-left
+        if (x >= gifWidth / 2 && y < gifHeight / 2) return 'Q2'; // Top-right
+        if (x < gifWidth / 2 && y >= gifHeight / 2) return 'Q3'; // Bottom-left
+        return 'Q4'; // Bottom-right
+    }
+
+    function getRandomGIF() {
+        const allGifs = Object.values(trialGIFs).flat();
+        return allGifs[Math.floor(Math.random() * allGifs.length)];
+    }
+
+    function generateTrials() {
+        const allQuestions = [...QUESTION_TYPES]; // 5 question types
+        const usedGIFs = new Set(); // to track uniqueness
+
+        // Helper: get 5 random gifs for a given complexity
+        // function getRandomGifsForComplexity(complexity) {
+        //     const gifs = Object.keys(trialGIFs)
+        //         .filter(key => key.startsWith(complexity))
+        //         .map(key => trialGIFs[key])
+        //         .flat();
+
+        //     return getRandomItems(gifs, 5);
+        // }
+
+        function pickUniqueGIFs(gifPool) {
+            const shuffled = gifPool.slice().sort(() => 0.5 - Math.random());
+            const selected = [];
+            for (let gif of shuffled) {
+                if (!usedGIFs.has(gif)) {
+                    selected.push(gif);
+                    usedGIFs.add(gif);
+                }
+                if (selected.length === 5) break;
             }
-            return array;
+            return selected;
         }
 
-        function loadGif() {
-            if (gifIndex >= 3) {
-                document.getElementById("next-btn").style.display = "none";
-                document.getElementById("return-btn").style.display = "inline-block";
+        // Generate GIFs by complexity
+        const lcGifs = getRandomItems(trialGIFs["LC"], 5);
+        const mcGifs = getRandomItems(trialGIFs["MC"], 5);
+        const hcGifs = getRandomItems(trialGIFs["HC"], 5);
+
+        const allGifs = [...lcGifs, ...mcGifs, ...hcGifs];
+        const allTrials = [];
+
+        // Randomize question types for all 15 gifs
+        const questionsShuffled = [];
+
+        // Fill 3 rounds of 5 shuffled question types
+        for (let i = 0; i < 3; i++) {
+            const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
+            questionsShuffled.push(...shuffled);
+        }
+
+        // Create trial objects
+        for (let i = 0; i < 15; i++) {
+            allTrials.push({
+                question: questionsShuffled[i].type,
+                prompt: questionsShuffled[i].prompt,
+                gif: allGifs[i]
+            });
+        }
+        console.log("GIFs selected:", allGifs);
+        // Final shuffle for full trial randomization
+        return allTrials.sort(() => 0.5 - Math.random());
+    }
+
+
+    function startSurvey() {
+        const asuidInput = document.getElementById('asuid').value;
+        if (!/^\d{10}$/.test(asuidInput)) {
+            alert('ASU ID must be exactly 10 digits long and contain only numbers.');
+            return;
+        }
+        participantID = asuidInput; // Assign the valid ASU ID
+        trials = generateTrials();
+        document.getElementById('start-screen').style.display = 'none';
+        updateProgressBar();
+        showTrial();
+    }
+
+    function showTrial() {
+        const trial = trials[trialIndex];
+        startTime = Date.now();
+        document.getElementById('trial-screen').style.display = 'block';
+        updateProgressBar();
+
+        document.getElementById('trial-number').textContent = trialIndex + 1;
+        document.getElementById('question-prompt').innerHTML = `<strong>Question:</strong> ${trial.prompt}`;
+
+        // const gif = document.getElementById('cloud-gif');
+        // gif.src = `https://raw.githubusercontent.com/sparimi4/git-survey-hosting/main/Survey%20Data/${trial.gif}`;
+        // const container = document.querySelector('.gif-container');
+        // container.innerHTML = ''; container.appendChild(gif);
+
+        const container = document.querySelector('.gif-container');
+
+        // 🧽 Clear previous marker and loader/gif
+        container.innerHTML = `
+            <div id="gif-loader" class="loader-box" style="display: block;">Loading GIF for the question ...</div>
+            <img id="cloud-gif" src="" alt="Cloud Animation" style="display:none;" onload="hideLoader()">
+        `;
+
+        const gif = document.getElementById('cloud-gif');
+        const loader = document.getElementById('gif-loader');
+
+        gif.src = `https://raw.githubusercontent.com/sparimi4/git-survey-hosting/main/Survey%20Data/${trial.gif}`;
+        gif.onload = () => {
+            hideLoader();
+        };
+        const interaction = document.getElementById('interaction-area');
+        interaction.innerHTML = ''; // Clear
+
+        const nextButton = document.createElement('button');
+        nextButton.textContent = "Next";
+        nextButton.onclick = submitResponse;
+        interaction.appendChild(nextButton);
+
+        if (trial.question === 'cloud_movement_direction') {
+            const directionWrapper = document.createElement('div');
+            directionWrapper.id = 'direction-options';
+            ['Up', 'Down', 'Left', 'Right'].forEach(dir => {
+            const label = document.createElement('label');
+            label.style.marginRight = '1em';
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'direction';
+            input.value = dir;
+            label.appendChild(input);
+            label.appendChild(document.createTextNode(` ${dir}`));
+            directionWrapper.appendChild(label);
+            });
+            interaction.prepend(directionWrapper);
+        } 
+        else if (trial.question === 'most_cloudy_quadrant') {
+            const questionContainer = document.createElement('div');
+            questionContainer.style.marginTop = '1em';
+
+            const mostLabel = document.createElement('p');
+            mostLabel.textContent = "Which quadrant has the MOST cloud cover?";
+            questionContainer.appendChild(mostLabel);
+            const radioGroup = document.createElement('div');
+            radioGroup.className = 'radio-group';
+
+            ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
+                const label = document.createElement('label');
+                label.style.marginRight = '1em';
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = 'most-cloudy';
+                input.value = q;
+                label.appendChild(input);
+                label.appendChild(document.createTextNode(` ${q} (${quadrantNames[q]})`));
+                radioGroup.appendChild(label);
+            });
+
+            questionContainer.appendChild(radioGroup);
+            interaction.prepend(questionContainer);
+        }
+        else if (trial.question === 'least_cloudy_quadrant') {
+            const questionContainer = document.createElement('div');
+            questionContainer.style.marginTop = '1em';
+
+            const leastLabel = document.createElement('p');
+            leastLabel.textContent = "Which quadrant has the LEAST cloud cover?";
+            questionContainer.appendChild(leastLabel);
+            const radioGroup = document.createElement('div');
+            radioGroup.className = 'radio-group';
+
+            ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
+                const label = document.createElement('label');
+                label.style.marginRight = '1em';
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.name = 'least-cloudy';
+                input.value = q;
+                label.appendChild(input);
+                label.appendChild(document.createTextNode(` ${q} (${quadrantNames[q]})`));
+                radioGroup.appendChild(label);
+            });
+
+            questionContainer.appendChild(radioGroup);
+            interaction.prepend(questionContainer);
+        }
+        else {
+            const container = document.querySelector('.gif-container');
+
+            gif.onclick = (e) => {
+                const rect = gif.getBoundingClientRect();
+                // const x = Math.round(e.clientX - rect.left);
+                // const y = Math.round(e.clientY - rect.top);
+                const x = Math.round(e.offsetX);
+                const y = Math.round(e.offsetY);
+                const elapsed = (Date.now() - startTime) / 1000;
+                const loops = Math.floor(elapsed / loopDuration);
+
+                if (loops < 1) {
+                    alert("Please watch at least one full loop before clicking.");
+                    return;
+                }
+
+                // Save common click info
+                trial.clickX = x;
+                trial.clickY = y;
+                trial.responseTime = elapsed.toFixed(2);
+                trial.loops = loops;
+                trial.trialNumber = trialIndex + 1;
+                trial.participant = participantID;
+
+                const quadrant = getQuadrant(x, y, rect.width, rect.height);
+                trial.quadrantClick = quadrant;
+
+                const marker = document.createElement('div');
+                marker.className = 'click-marker';
+                // marker.style.left = `${(x / gif.width) * 100}%`;
+                // marker.style.top = `${(y / gif.height) * 100}%`;
+                marker.style.left = `${(x / gif.clientWidth) * 100}%`;
+                marker.style.top = `${(y / gif.clientHeight) * 100}%`;
+                marker.style.transform = "translate(-50%, -50%)";
+                container.appendChild(marker);
+            }
+            // Add quadrant confirmation dropdown if needed
+            // if (trial.question.includes('quadrant')) {
+            
+            // gif.onclick = null; // prevent multiple clicks
+            // };
+        }
+
+        reminderTimeout = setTimeout(() => {
+            alert("You've been on this question for 10 minutes. Please respond.");
+        }, 10 * 60 * 1000);
+    }
+
+    function updateProgressBar() {
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.innerHTML = ''; // Clear existing
+
+        for (let i = 0; i < trials.length; i++) {
+            const progressItem = document.createElement('div');
+            progressItem.classList.add('progress-circle');
+
+            if (i < trialIndex) {
+            progressItem.classList.add('completed');
+            progressItem.textContent = "✔";
+            } else if (i === trialIndex) {
+            progressItem.classList.add('current');
+            progressItem.textContent = `Q${i + 1}`;
+            } else {
+            progressItem.classList.add('remaining');
+            progressItem.textContent = `Q${i + 1}`;
+            }
+
+            progressBar.appendChild(progressItem);
+        }
+    }
+
+    function submitResponse() {
+        const trial = trials[trialIndex];
+        trial.trialNumber = trialIndex + 1;
+        trial.participant = participantID;
+        const elapsed = (Date.now() - startTime) / 1000;
+        const loops = Math.floor(elapsed / loopDuration);
+        if (loops < 1) {
+            alert("Please wait until one loop (7.2s) before answering.");
+            return;
+        }
+
+        if (trial.question === 'cloud_movement_direction') {
+            const direction = document.querySelector('input[name="direction"]:checked')?.value;
+            if (!direction) {
+            alert("Please select a direction.");
+            return;
+            }
+            trial.responseTime = elapsed.toFixed(2);
+            trial.loops = loops;
+            trial.selectedDirection = direction;
+            trial.trialNumber = trialIndex + 1;
+            trial.participant = participantID;
+        } else if (trial.question === 'most_cloudy_quadrant') {
+            const most = document.querySelector('input[name="most-cloudy"]:checked')?.value;
+            if (!most) {
+                alert("Please select the MOST cloudy quadrant.");
                 return;
             }
-            let gifData = gifList[gifIndex];
-            let img = new Image();
-            img.src = gifData.url;
-            img.onload = function () {
-                let canvas = document.getElementById("gifCanvas");
-                let ctx = canvas.getContext("2d");
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                loopCount = 0;
-                startGifLoop(img, ctx);
-            };
+            trial.selectedMostQuadrant = most;
+            trial.responseTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            trial.loops = Math.floor((Date.now() - startTime) / (loopDuration));
+            trial.trialNumber = trialIndex + 1;
+            trial.participant = participantID;
+        } else if (trial.question === 'least_cloudy_quadrant') {
+            const least = document.querySelector('input[name="least-cloudy"]:checked')?.value;
+            if (!least) {
+                alert("Please select the LEAST cloudy quadrant.");
+                return;
+            }
+            trial.selectedLeastQuadrant = least;
+            trial.responseTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            trial.loops = Math.floor((Date.now() - startTime) / (loopDuration));
+            trial.trialNumber = trialIndex + 1;
+            trial.participant = participantID;
+        } else {
+            if (!trial.clickX || !trial.clickY) {
+                alert("Please click on the image to make your selection.");
+                return;
+            }
+            // clickX, clickY already recorded
         }
 
-        function startGifLoop(img, ctx) {
-            let interval = setInterval(() => {
-                ctx.clearRect(0, 0, img.width, img.height);
-                ctx.drawImage(img, 0, 0);
-                loopCount++;
-            }, 1000);
+        responses.push(trial);
+        trialIndex++;
 
-            canvas.onclick = function () {
-                clearInterval(interval);
-                startLassoSelection();
-            };
+        if (trialIndex >= trials.length) {
+            submitToFirebase(); // Save to Firebase after last trial
+        } else {
+            clearTimeout(reminderTimeout);
+            showTrial();
         }
 
-        function startLassoSelection() {
-            let path;
-            let canvas = document.getElementById("gifCanvas");
-            paper.setup(canvas);
-            let tool = new paper.Tool();
-            
-            tool.onMouseDown = function(event) {
-                path = new paper.Path();
-                path.strokeColor = 'red';
-                path.add(event.point);
-            };
 
-            tool.onMouseDrag = function(event) {
-                path.add(event.point);
-            };
+    }
 
-            tool.onMouseUp = function(event) {
-                path.closed = true;
-                selectedRegions.push({ gifIndex, path: path.exportJSON(), loops: loopCount });
-                document.getElementById("next-btn").style.display = "inline-block";
-            };
+    function downloadCSV() {
+        let csv = "Participant,Trial,Question,GIF,ClickX,ClickY,Time,Loops,SelectedQuadrant,Direction,MostQuadrant,LeastQuadrant\n";
+        responses.forEach(r => {
+            csv += `${r.participant},${r.trialNumber},${r.question},${r.gif},${r.clickX || ''},${r.clickY || ''},${r.responseTime || ''},${r.loops || ''},${r.selectedQuadrant || ''},${r.selectedDirection || ''},${r.selectedMostQuadrant || ''},${r.selectedLeastQuadrant || ''}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `cloud_survey_${participantID}.csv`;
+        link.click();
+    }
+    document.getElementById('start-screen').style.display = 'block';
+</script>
+
+<script>
+    async function submitToFirebase() {
+        try {
+            await db.collection("survey_responses").add({
+            participant: participantID,
+            timestamp: new Date().toISOString(),
+            responses: responses
+            });
+            document.getElementById('trial-screen').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'block';
+            alert("Your responses have been submitted successfully.");
+        } catch (error) {
+            console.error("Error saving data to Firebase:", error);
+            alert("There was an error saving your data. Please try again later.");
         }
+    }
+</script>
 
-        function nextGif() {
-            gifIndex++;
-            document.getElementById("next-btn").style.display = "none";
-            loadGif();
-        }
-
-        function returnToSurvey() {
-            console.log("User selections: ", selectedRegions);
-            alert("Data saved! Returning to survey...");
-            window.location.href = surveyReturnURL;
-        }
-
-        loadGifs();
-    </script>
 </body>
-</html>
+</html>  
