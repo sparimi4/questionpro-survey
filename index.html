@@ -792,7 +792,7 @@
         }
     }
 
-    function submitResponse() {
+    async function submitResponse() {
         const trial = trials[trialIndex];
         trial.trialNumber = trialIndex + 1;
         trial.participant = participantID;
@@ -859,17 +859,20 @@
             // clickX, clickY already recorded
         }
 
-        responses.push(trial);
+        // responses.push(trial);
+        
+        await pushSingleResponse(trial);
+
         trialIndex++;
 
         if (trialIndex >= trials.length) {
-            submitToFirebase(); // Save to Firebase after last trial
+            document.getElementById('trial-screen').style.display = 'none';
+            document.getElementById('end-screen').style.display = 'block';
+            alert("Thank you! Your responses have been submitted successfully.");
         } else {
             clearTimeout(reminderTimeout);
             showTrial();
         }
-
-
     }
 
     function downloadCSV() {
@@ -885,9 +888,33 @@
     }
     // document.getElementById('start-screen').style.display = 'block';
     document.getElementById('intro-screen').style.display = 'block';
+
+
+    async function pushSingleResponse(trialData) {
+    try {
+        const trialID = `trial_${trialData.trialNumber}`;
+        await db
+            .collection("survey_responses")
+            .doc(participantID)
+            .collection("trials")
+            .doc(trialID)
+            .set({
+                ...trialData,
+                timestamp: new Date().toISOString()
+            });
+
+        console.log(`Saved ${trialID} for ${participantID}`);
+    } catch (error) {
+        console.error("Error saving trial:", error);
+        alert("There was an error saving your response. Please check your internet connection.");
+    }
+    }
+
+
+
 </script>
 
-<script>
+<!-- <script>
     async function submitToFirebase() {
         // Get attention checks
         const attentionChecks = responses.filter(r => r.question.startsWith("attention_check"));
@@ -914,7 +941,7 @@
             alert("There was an error saving your data. Please try again later.");
         }
     }
-</script>
+</script> -->
 
 </body>
 </html>  
