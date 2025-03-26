@@ -272,7 +272,7 @@
     </div>
 
     <div id="trial-screen">
-        <h3>Trial <span id="trial-number"></span>/15</h3>
+        <!-- <h3>Trial <span id="trial-number"></h3> -->
         <p id="question-prompt"><strong>Question:</strong></p>
         <div class="gif-container">
             <div id="gif-loader">Loading GIF for the question ...</div>
@@ -324,10 +324,10 @@
     };
 
     const QUESTION_TYPES = [
-    { type: 'cloudiest_region', prompt: 'Click on the region you think is the most cloudy.' },
-    { type: 'clearest_region', prompt: 'Click on the region you think is the least cloudy.' },
-    { type: 'most_cloudy_quadrant', prompt: 'Select the quadrant that you think is the most cloudy.' },
-    { type: 'least_cloudy_quadrant', prompt: 'Select the quadrant you think is the least cloudy.' },
+    { type: 'cloudiest_region', prompt: 'Click on the region you think is the <strong>MOST</strong> cloudy over the duration of the GIF.' },
+    { type: 'clearest_region', prompt: 'Click on the region you think is the <strong>LEAST</strong> cloudy over the duration of the GIF.' },
+    { type: 'most_cloudy_quadrant', prompt: 'Select the quadrant that you think is the <strong>MOST</strong> cloudy.' },
+    { type: 'least_cloudy_quadrant', prompt: 'Select the quadrant you think is the <strong>LEAST</strong> cloudy.' },
     { type: 'cloud_movement_direction', prompt: 'Which direction are the clouds moving? (Up / Down / Left / Right)' },
     { type: 'attention_check_1', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
     { type: 'attention_check_2', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
@@ -471,7 +471,7 @@
         document.getElementById('trial-screen').style.display = 'block';
         updateProgressBar();
 
-        document.getElementById('trial-number').textContent = `${getVisibleProgressIndex() + 1} of 25`;
+        // document.getElementById('trial-number').textContent = `${getVisibleProgressIndex() + 1} of 25`;
         document.getElementById('question-prompt').innerHTML = `<strong>Question:</strong> ${trial.prompt}`;
 
         // const gif = document.getElementById('cloud-gif');
@@ -526,12 +526,12 @@
             questionContainer.style.marginTop = '1em';
 
             const mostLabel = document.createElement('p');
-            mostLabel.textContent = "Which quadrant has the MOST cloud cover?";
+            mostLabel.textContent = "Which quadrant has the <strong>MOST</strong> cloud cover?";
             questionContainer.appendChild(mostLabel);
             const radioGroup = document.createElement('div');
             radioGroup.className = 'radio-group';
 
-            ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
+            ['Top Left', 'Top Right', 'Bottom Left', 'Bottom Right'].forEach(q => {
                 const label = document.createElement('label');
                 label.style.marginRight = '1em';
                 const input = document.createElement('input');
@@ -551,12 +551,12 @@
             questionContainer.style.marginTop = '1em';
 
             const leastLabel = document.createElement('p');
-            leastLabel.textContent = "Which quadrant has the LEAST cloud cover?";
+            leastLabel.textContent = "Which quadrant has the <strong>LEAST</strong> cloud cover?";
             questionContainer.appendChild(leastLabel);
             const radioGroup = document.createElement('div');
             radioGroup.className = 'radio-group';
 
-            ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
+            ['Top Left', 'Top Right', 'Bottom Left', 'Bottom Right'].forEach(q => {
                 const label = document.createElement('label');
                 label.style.marginRight = '1em';
                 const input = document.createElement('input');
