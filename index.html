@@ -46,7 +46,7 @@
     }
 
     .intro-content {
-        max-width: 800px;
+        max-width: 1000px;
         background: snow;
         padding: 2em;
         box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -225,6 +225,15 @@
         border-radius: 4px;
         color: #333;
     }
+    .info-bar-2 {
+        background-color: #ffe0e7; /* light blue background */
+        padding: 12px 16px;
+        margin: 8px 0;
+        border-left: 6px solid #cc002c; /* blue accent bar */
+        font-weight: 500;
+        border-radius: 4px;
+        color: #333;
+    }
   </style>
 </head>
 <body>
@@ -236,11 +245,11 @@
 
 <div class="main-content">
     <div id="intro-screen" class="intro-container">
-        <img src="ASU-logo.png" alt="ASU Logo" class="intro-logo">
+        <!-- <img src="ASU-logo.png" alt="ASU Logo" class="intro-logo"> -->
         <div class="intro-content">
             <h2>Welcome to the Cloud Cover Study</h2>
             <p>
-                In this study, you will be viewing a series of short animated visualizations that show cloud cover over time. Each animation lasts approximately 7.2 seconds and will loop continuously while you're on the page.
+                In this study, you will be viewing a series of 45 short animated visualizations that show cloud cover over time. Each animation lasts approximately 7.2 seconds and will loop continuously while you're on the page.
             </p>
             <p>
                 <strong>How to Read the Animations:</strong>
@@ -249,13 +258,15 @@
             <div class="info-bar">Blue areas indicate less or no cloud cover</div>
     
             <p><strong>What You Will Be Asked:</strong></p>
-            <p>After watching each animation, you will answer one question. There are three possible types of questions:</p>
+            <p>For each animation, you will answer one question. There are three possible types of questions:</p>
     
             <div class="info-bar"><strong>Quadrant selection:</strong> Choose the quadrant (Top Left, Top Right, Bottom Left, Bottom Right) that best answers the question.</div>
             <div class="info-bar"><strong>Direction selection:</strong> Identify the direction the clouds are moving (Upwards, Downwards, Leftwards, Rightwards).</div>
-            <div class="info-bar"><strong>Click selection:</strong> Click on the part of the animation that best answers the question.</div>
+            <div class="info-bar"><strong>Click selection:</strong> Click on the geographic region that best answers the question.</div>
     
-            <p><strong>Important:</strong> You must watch the animation at least once before you can respond. The answer options will remain disabled until the animation completes its first loop. You’re welcome to watch the animation as many times as you'd like before answering.</p>
+            <div class="info-bar-2"><p><strong>Important:</strong> You must watch the animation at least once before you can respond. The answer options will remain disabled until the animation completes its first loop. You’re welcome to watch the animation as many times as you'd like before answering.</p></div>
+            
+            <div class="info-bar-2"><p><strong>Important:</strong> <strong>DO NOT</strong> reload or refresh this page, or your progress will be lost and you will have to start over!</p></div>
             
             <p>Click "Continue" to begin the study.</p>
             <div class="center">
@@ -327,11 +338,11 @@
     };
 
     const QUESTION_TYPES = [
-    { type: 'cloudiest_region', prompt: 'Click on the region you think is the <strong>MOST</strong> cloudy over the duration of the GIF.' },
-    { type: 'clearest_region', prompt: 'Click on the region you think is the <strong>LEAST</strong> cloudy over the duration of the GIF.' },
+    { type: 'cloudiest_region', prompt: 'Click on the geographic region you think is the <strong>MOST</strong> cloudy over the duration of the GIF.' },
+    { type: 'clearest_region', prompt: 'Click on the geographic region you think is the <strong>LEAST</strong> cloudy over the duration of the GIF.' },
     { type: 'most_cloudy_quadrant', prompt: 'Select the quadrant that you think is the <strong>MOST</strong> cloudy.' },
     { type: 'least_cloudy_quadrant', prompt: 'Select the quadrant you think is the <strong>LEAST</strong> cloudy.' },
-    { type: 'cloud_movement_direction', prompt: 'Which direction are the clouds moving? (Up / Down / Left / Right)' },
+    { type: 'cloud_movement_direction', prompt: 'Which direction are the clouds moving?' },
     { type: 'attention_check_1', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
     { type: 'attention_check_2', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
     { type: 'attention_check_3', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' }
