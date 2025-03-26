@@ -93,23 +93,25 @@
         z-index: 1000;
         width: 100%;
         background-color: #8C1D40;
-        padding: 1em;
+        padding: 0.5em 1em;
         display: flex;
         flex-direction: row;
         justify-content: center;
         align-items: center;
         flex-wrap: wrap;
+        gap: 3px
     }
-    .progress-circle {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
+    .progress-rectangle {
+        width: 22px;
+        height: 18px;
+        margin: 2px;
+        display: inline-block;
         text-align: center;
-        line-height: 30px;
-        font-size: 14px;
-        color: black;
-        margin: 5px;
-        transition: all 0.3s ease;
+        line-height: 18px;
+        font-size: 12px;
+        font-weight: bold;
+        border-radius: 3px;
+        transition: background-color 0.3s ease;
     }
     .completed {
         background-color: #568203;
@@ -320,7 +322,8 @@
 
     let attentionCheckRetries = {
         attention_check_1: 0,
-        attention_check_2: 0
+        attention_check_2: 0,
+        attention_check_3: 0,
     };
 
     const QUESTION_TYPES = [
@@ -331,6 +334,7 @@
     { type: 'cloud_movement_direction', prompt: 'Which direction are the clouds moving? (Up / Down / Left / Right)' },
     { type: 'attention_check_1', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
     { type: 'attention_check_2', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
+    { type: 'attention_check_3', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' }
     ];
 
     const complexities = ['LC', 'MC', 'HC'];
@@ -386,10 +390,14 @@
         const usedGIFs = new Set(); // to track uniqueness
 
         const complexityCounts = {
-        LC: 8,
-        MC: 8,
-        HC: 9
+        LC: 15,
+        MC: 15,
+        HC: 15
     };
+
+    // If needed for even distribution:
+    const totalGifsNeeded = 45 + 3; // 48 total
+    const perComplexity = Math.ceil(totalGifsNeeded / complexities.length); // e.g., 16
 
     let allGifs = [];
 
@@ -407,7 +415,7 @@
     allQuestions.forEach(qType => {
         const prompt = qType.prompt;
         const type = qType.type;
-        const selectedGifs = allGifs.splice(0, 5);
+        const selectedGifs = allGifs.splice(0, 9);
         selectedGifs.forEach(gif => {
             questionTypeTrials.push({
                 question: type,
@@ -426,20 +434,29 @@
             question: "attention_check_1",
             prompt: "Please select the quadrant with largest cloud cover in the GIF.",
             gif: "attention_check_1.gif",
-            correctAnswer: "Q3"
+            correctAnswer: "Top Left"
         },
         {
             question: "attention_check_2",
             prompt: "Please select the quadrant with largest cloud cover in the GIF.",
             gif: "attention_check_2.gif",
-            correctAnswer: "Q3"
+            correctAnswer: "Top Right"
+        },
+        {
+            question: "attention_check_3",
+            prompt: "Please select the quadrant with largest cloud cover in the GIF.",
+            gif: "attention_check_3.gif",
+            correctAnswer: "Bottom Left"
         }
     ];
 
-    // Shuffle attention checks and insert at 6th and 18th position (index 5 and 17)
+    // Shuffle attention checks (optional)
     const shuffledAttChecks = attChecks.sort(() => 0.5 - Math.random());
-    shuffledNormalTrials.splice(5, 0, shuffledAttChecks[0]);
-    shuffledNormalTrials.splice(17, 0, shuffledAttChecks[1]);
+
+    // Insert attention checks after 9th, 18th, and 27th trial
+    shuffledNormalTrials.splice(9, 0, shuffledAttChecks[0]);
+    shuffledNormalTrials.splice(19, 0, shuffledAttChecks[1]);
+    shuffledNormalTrials.splice(29, 0, shuffledAttChecks[2]);
 
     return shuffledNormalTrials; // total = 27 trials (25 + 2 checks)
     }
@@ -526,7 +543,7 @@
             questionContainer.style.marginTop = '1em';
 
             const mostLabel = document.createElement('p');
-            mostLabel.textContent = "Which quadrant has the <strong>MOST</strong> cloud cover?";
+            // mostLabel.textContent = "Which quadrant has the MOST cloud cover?";
             questionContainer.appendChild(mostLabel);
             const radioGroup = document.createElement('div');
             radioGroup.className = 'radio-group';
@@ -539,7 +556,7 @@
                 input.name = 'most-cloudy';
                 input.value = q;
                 label.appendChild(input);
-                label.appendChild(document.createTextNode(` ${q} (${quadrantNames[q]})`));
+                label.appendChild(document.createTextNode(` ${q} `));
                 radioGroup.appendChild(label);
             });
 
@@ -551,7 +568,7 @@
             questionContainer.style.marginTop = '1em';
 
             const leastLabel = document.createElement('p');
-            leastLabel.textContent = "Which quadrant has the <strong>LEAST</strong> cloud cover?";
+            // leastLabel.textContent = "Which quadrant has the LEAST cloud cover?";
             questionContainer.appendChild(leastLabel);
             const radioGroup = document.createElement('div');
             radioGroup.className = 'radio-group';
@@ -564,7 +581,7 @@
                 input.name = 'least-cloudy';
                 input.value = q;
                 label.appendChild(input);
-                label.appendChild(document.createTextNode(` ${q} (${quadrantNames[q]})`));
+                label.appendChild(document.createTextNode(` ${q} `));
                 radioGroup.appendChild(label);
             });
 
@@ -746,17 +763,17 @@
 
         for (let i = 0; i < visibleTrials.length; i++) {
             const progressItem = document.createElement('div');
-            progressItem.classList.add('progress-circle');
+            progressItem.classList.add('progress-rectangle');
 
             if (i < currentVisibleIndex) {
                 progressItem.classList.add('completed');
                 progressItem.textContent = "✔";
             } else if (i === currentVisibleIndex) {
                 progressItem.classList.add('current');
-                progressItem.textContent = `Q${i + 1}`;
+                progressItem.textContent = `${i + 1}`;
             } else {
                 progressItem.classList.add('remaining');
-                progressItem.textContent = `Q${i + 1}`;
+                progressItem.textContent = `${i + 1}`;
             }
 
             progressBar.appendChild(progressItem);
@@ -866,7 +883,7 @@
         const incorrectCount = attentionChecks.filter(r => !r.attentionCorrect).length;
 
         if (incorrectCount >= 2) {
-            alert("You failed both attention checks. Your responses will not be recorded.");
+            alert("Thank you. Your responses will be recorded.");
             document.getElementById('trial-screen').style.display = 'none';
             document.getElementById('end-screen').style.display = 'block';
             return;
@@ -880,7 +897,7 @@
             });
             document.getElementById('trial-screen').style.display = 'none';
             document.getElementById('end-screen').style.display = 'block';
-            alert("Your responses have been submitted successfully.");
+            alert("Your responses have been submitted successfully. Thank you!");
         } catch (error) {
             console.error("Error saving data to Firebase:", error);
             alert("There was an error saving your data. Please try again later.");
