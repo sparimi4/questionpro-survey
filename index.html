@@ -249,7 +249,7 @@
         <div class="intro-content">
             <h2>Welcome to the Cloud Cover Study</h2>
             <p>
-                In this study, you will be viewing a series of 45 short animated visualizations that show cloud cover over time. Each animation lasts approximately 7.2 seconds and will loop continuously while you're on the page.
+                In this study, you will be viewing a series of 60 short animated visualizations that show cloud cover over time. Each animation lasts approximately 7.2 seconds and will loop continuously while you're on the page.
             </p>
             <p>
                 <strong>How to Read the Animations:</strong>
@@ -277,8 +277,8 @@
        
     <div id="start-screen">
         <h2>To Start the Cloud Cover Visualization Survey</h2>
-        <p>Please enter your ASU ID:</p>
-        <input type="text" id="asuid" placeholder="ASU ID">
+        <p>Please enter your ASU Email:</p>
+        <input type="email" id="asuid" placeholder="your.name@asu.edu">
         <div class="center">
             <button onclick="startSurvey()">Start Survey</button>
         </div>
@@ -330,11 +330,13 @@
     let trials = [];
     let responses = [];
     let reminderTimeout;
+    let participantGroup = -1; // Latin Square group (0-4)
 
     let attentionCheckRetries = {
         attention_check_1: 0,
         attention_check_2: 0,
         attention_check_3: 0,
+        attention_check_4: 0,
     };
 
     const QUESTION_TYPES = [
@@ -343,9 +345,6 @@
     { type: 'most_cloudy_quadrant', prompt: 'Select the quadrant that you think is the <strong>MOST</strong> cloudy.' },
     { type: 'least_cloudy_quadrant', prompt: 'Select the quadrant you think is the <strong>LEAST</strong> cloudy.' },
     { type: 'cloud_movement_direction', prompt: 'Which direction are the clouds moving?' },
-    { type: 'attention_check_1', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
-    { type: 'attention_check_2', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' },
-    { type: 'attention_check_3', prompt: 'Please select the quadrant with largest cloud cover in the GIF.' }
     ];
 
     const complexities = ['LC', 'MC', 'HC'];
@@ -397,97 +396,126 @@
     }
 
     function generateTrials() {
-        const allQuestions = [...QUESTION_TYPES].filter(q => !q.type.startsWith("attention_check")); // 5 question types
-        const usedGIFs = new Set(); // to track uniqueness
-
-        const complexityCounts = {
-        LC: 15,
-        MC: 15,
-        HC: 15
-    };
-
-    // If needed for even distribution:
-    const totalGifsNeeded = 45 + 3; // 48 total
-    const perComplexity = Math.ceil(totalGifsNeeded / complexities.length); // e.g., 16
-
-    let allGifs = [];
-
-    // Select unique GIFs for each complexity
-    for (let complexity of complexities) {
-        const selected = getRandomItems(trialGIFs[complexity], complexityCounts[complexity]);
-        allGifs.push(...selected);
-    }
-
-    // Shuffle all GIFs
-    allGifs = allGifs.sort(() => 0.5 - Math.random());
-
-    // Build 25 trials, 5 per question type
-    const questionTypeTrials = [];
-    allQuestions.forEach(qType => {
-        const prompt = qType.prompt;
-        const type = qType.type;
-        const selectedGifs = allGifs.splice(0, 9);
-        selectedGifs.forEach(gif => {
-            questionTypeTrials.push({
-                question: type,
-                prompt: prompt,
-                gif: gif
-            });
-        });
-    });
-
-    // Shuffle the 25 trials
-    const shuffledNormalTrials = questionTypeTrials.sort(() => 0.5 - Math.random());
-
-    // Attention checks
-    const attChecks = [
-        {
-            question: "attention_check_1",
-            prompt: "Please select the quadrant with largest cloud cover in the GIF.",
-            gif: "attention_check_1.gif",
-            correctAnswer: "Top Left"
-        },
-        {
-            question: "attention_check_2",
-            prompt: "Please select the quadrant with largest cloud cover in the GIF.",
-            gif: "attention_check_2.gif",
-            correctAnswer: "Top Right"
-        },
-        {
-            question: "attention_check_3",
-            prompt: "Please select the quadrant with largest cloud cover in the GIF.",
-            gif: "attention_check_3.gif",
-            correctAnswer: "Bottom Left"
+        const complexities = ['LC', 'MC', 'HC'];
+        const allGIFsByComplexity = { LC: [], MC: [], HC: [] };
+        for (let c of complexities) {
+            for (let b of ['0.0', '2.3', '4.6', '6.9', '9.2']) {
+                for (let i = 1; i <= 5; i++) {
+                    allGIFsByComplexity[c].push(`${c}_${b}_${i}_rot0.gif`);
+                }
+            }
         }
-    ];
 
-    // Shuffle attention checks (optional)
-    const shuffledAttChecks = attChecks.sort(() => 0.5 - Math.random());
+        // Shuffle each complexity pool
+        const shuffled = {};
+        for (let c of complexities) {
+            shuffled[c] = allGIFsByComplexity[c].slice().sort(() => 0.5 - Math.random());
+        }
 
-    // Insert attention checks after 9th, 18th, and 27th trial
-    shuffledNormalTrials.splice(9, 0, shuffledAttChecks[0]);
-    shuffledNormalTrials.splice(19, 0, shuffledAttChecks[1]);
-    shuffledNormalTrials.splice(29, 0, shuffledAttChecks[2]);
+        // Build 5 GIF sets: each with 4 LC + 4 MC + 4 HC = 12 GIFs per set
+        const gifSets = [];
+        for (let s = 0; s < 5; s++) {
+            const set = [
+                ...shuffled.LC.slice(s * 4, s * 4 + 4),
+                ...shuffled.MC.slice(s * 4, s * 4 + 4),
+                ...shuffled.HC.slice(s * 4, s * 4 + 4),
+            ];
+            gifSets.push(set.sort(() => 0.5 - Math.random()));
+        }
 
-    return shuffledNormalTrials; // total = 27 trials (25 + 2 checks)
-    }
+        // Latin Square block order for this participant's group
+        const trialOrder = [0, 1, 2, 3, 4].map((_, i) => (i + participantGroup) % 5);
+
+        // Build trials block by block (1 block = 1 question type × 12 GIFs)
+        const trialBlocks = [];
+        for (let blockIdx = 0; blockIdx < 5; blockIdx++) {
+            const questionTypeIndex = trialOrder[blockIdx];
+            const gifSetIndex = (questionTypeIndex + participantGroup) % 5;
+            const qType = QUESTION_TYPES[questionTypeIndex];
+            const gifs  = gifSets[gifSetIndex];
+
+            gifs.forEach(gif => {
+                trialBlocks.push({
+                    question:          qType.type,
+                    prompt:            qType.prompt,
+                    gif:               gif,
+                    latinSquareGroup:  participantGroup,
+                    gifSetIndex:       gifSetIndex,
+                    questionTypeIndex: questionTypeIndex
+                });
+            });
+        }
+
+        // Shuffle within each block of 12 (preserves inter-block Latin Square order)
+        const shuffledTrials = [];
+        for (let b = 0; b < 5; b++) {
+            const block = trialBlocks.slice(b * 12, b * 12 + 12).sort(() => 0.5 - Math.random());
+            shuffledTrials.push(...block);
+        }
+
+        // 4 Attention checks after every 15 main trials
+        const attChecks = [
+            { question: "attention_check_1", prompt: "Please select the quadrant with largest cloud cover in the GIF.", gif: "attention_check_1.gif", correctAnswer: "Top Left" },
+            { question: "attention_check_2", prompt: "Please select the quadrant with largest cloud cover in the GIF.", gif: "attention_check_2.gif", correctAnswer: "Top Right" },
+            { question: "attention_check_3", prompt: "Please select the quadrant with largest cloud cover in the GIF.", gif: "attention_check_3.gif", correctAnswer: "Bottom Left" },
+            { question: "attention_check_4", prompt: "Please select the quadrant with largest cloud cover in the GIF.", gif: "attention_check_4.gif", correctAnswer: "Bottom Right" }
+        ];
+        const shuffledAttChecks = attChecks.sort(() => 0.5 - Math.random());
+        shuffledTrials.splice(12, 0, shuffledAttChecks[0]); // after trial 12
+        shuffledTrials.splice(25, 0, shuffledAttChecks[1]); // after trial 25 (+1 offset)
+        shuffledTrials.splice(38, 0, shuffledAttChecks[2]); // after trial 36 (+2 offset)
+        shuffledTrials.splice(51, 0, shuffledAttChecks[3]); // after trial 48 (+3 offset)
+
+        return shuffledTrials; // 64 total (60 main + 4 attention checks)
+    };
 
     function showStartScreen() {
         document.getElementById('intro-screen').style.display = 'none';
         document.getElementById('start-screen').style.display = 'block';
     }
 
-    function startSurvey() {
+    async function startSurvey() {
         const asuidInput = document.getElementById('asuid').value;
-        if (!/^\d{10}$/.test(asuidInput)) {
-            alert('ASU ID must be exactly 10 digits long and contain only numbers.');
+        if (!/^[^\s@]+@asu\.edu$/.test(asuidInput)) {
+            alert('Please enter a valid ASU email address (e.g. your.name@asu.edu).');
             return;
         }
-        participantID = asuidInput; // Assign the valid ASU ID
-        trials = generateTrials();
-        document.getElementById('start-screen').style.display = 'none';
-        updateProgressBar();
-        showTrial();
+        participantID = asuidInput;
+
+        try {
+            // Atomically assign Latin Square group
+            const counterRef = db.collection("meta").doc("participant_counter");
+            let assignedGroup = -1;
+            let assignedCount = -1;
+
+            await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(counterRef);
+                let currentCount = doc.exists ? (doc.data().count || 0) : 0;
+                assignedCount = currentCount + 1;
+                assignedGroup = currentCount % 5; // cycles 0,1,2,3,4,0,1,2,...
+                transaction.set(counterRef, { count: assignedCount }, { merge: true });
+            });
+
+            participantGroup = assignedGroup;
+            console.log(`Participant #${assignedCount} assigned to Latin Square Group ${assignedGroup}`);
+
+            // Save group metadata to Firebase
+            await db.collection("survey_responses").doc(participantID).set({
+                participantID:     participantID,
+                participantNumber: assignedCount,
+                latinSquareGroup:  assignedGroup,
+                surveyStarted:     new Date().toISOString()
+            }, { merge: true });
+
+            trials = generateTrials();
+            document.getElementById('start-screen').style.display = 'none';
+            updateProgressBar();
+            showTrial();
+
+        } catch (error) {
+            console.error("Error assigning group:", error);
+            alert("There was an error starting the survey. Please check your internet connection and try again.");
+        }
     }
 
     let clickEnabled = false;
@@ -765,10 +793,6 @@
         const progressBar = document.getElementById('progress-bar');
         progressBar.innerHTML = ''; // Clear existing
 
-        for (let i = 0; i < trials.length; i++) {
-            const progressBar = document.getElementById('progress-bar');
-        progressBar.innerHTML = ''; // Clear existing
-
         const visibleTrials = getVisibleTrials(); // only non-attention-check trials
         const currentVisibleIndex = getVisibleProgressIndex();
 
@@ -790,7 +814,6 @@
             progressBar.appendChild(progressItem);
             }
         }
-    }
 
     async function submitResponse() {
         const trial = trials[trialIndex];
@@ -847,7 +870,7 @@
             trial.loops = loops;
 
             // Attention check logic
-            const correct = trial.correctAnswer || "Q3";
+            const correct = trial.correctAnswer;
             attentionCheckRetries[trial.question] = (attentionCheckRetries[trial.question] || 0) + 1;
             trial.attentionCorrect = selected === correct;
 
