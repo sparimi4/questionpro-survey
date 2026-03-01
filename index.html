@@ -489,12 +489,23 @@ return pools;
             });
         }
 
-        // Shuffle within each block of 12 (preserves inter-block Latin Square order)
-        const shuffledTrials = [];
+        // Interleave trials so question types are evenly distributed throughout
+        // Divide 60 trials into 12 "slots" of 5, each containing one trial per question type
+        const bins = Array.from({ length: 12 }, () => []);
+        const blocksByType = [];
         for (let b = 0; b < 5; b++) {
             const block = trialBlocks.slice(b * 12, b * 12 + 12).sort(() => 0.5 - Math.random());
-            shuffledTrials.push(...block);
+            blocksByType.push(block);
         }
+        // Distribute one trial from each question type into each of the 12 slots
+        for (let slot = 0; slot < 12; slot++) {
+            for (let qType = 0; qType < 5; qType++) {
+                bins[slot].push(blocksByType[qType][slot]);
+            }
+            // Shuffle within each slot so question type order varies slot to slot
+            bins[slot].sort(() => 0.5 - Math.random());
+        }
+        const shuffledTrials = bins.flat();
 
         // 4 Attention checks after every 15 main trials
         const attChecks = [
