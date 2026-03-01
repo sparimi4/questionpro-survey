@@ -309,6 +309,67 @@
 </div>
 
 <script>
+// const BASE_GIF_URL = "https://raw.githubusercontent.com/sparimi4/git-survey-hosting/main/Survey%20Data%20Updated";
+const BASE_GIF_URL = "https://raw.githubusercontent.com/sparimi4/survey_data/main";
+
+// const GITHUB_LIST_URL = "https://api.github.com/repos/sparimi4/git-survey-hosting/contents/Survey%20Data%20Updated";
+const GITHUB_LIST_URL = "https://api.github.com/repos/sparimi4/survey_data/contents/";
+
+const filenameRegex =
+  /^cloud_index_(Low|Medium|High)Complexity_binned_(0\.0|2\.3|4\.6|6\.9|9\.2)_(\d{4}-\d{2}-\d{2})\.gif$/;
+
+function labelToComplexity(label) {
+  if (label === "Low") return "LC";
+  if (label === "Medium") return "MC";
+  if (label === "High") return "HC";
+  return null;
+}
+
+let STIM_POOLS = null;
+
+async function loadStimuliFromGitHub() {
+  const resp = await fetch(GITHUB_LIST_URL, {
+    headers: { "Accept": "application/vnd.github+json" }
+  });
+
+  if (!resp.ok) {
+    throw new Error(`GitHub list failed: ${resp.status} ${resp.statusText}`);
+  }
+
+  const items = await resp.json(); // array of {name, type, ...}
+  const gifs = items
+    .filter(x => x.type === "file" && x.name.endsWith(".gif"))
+    .map(x => x.name);
+
+  // Build dynamic pools
+  const pools = {
+    LC: { "0.0": [], "2.3": [], "4.6": [], "6.9": [], "9.2": [] },
+    MC: { "0.0": [], "2.3": [], "4.6": [], "6.9": [], "9.2": [] },
+    HC: { "0.0": [], "2.3": [], "4.6": [], "6.9": [], "9.2": [] }
+  };
+
+  for (const name of gifs) {
+    const m = name.match(filenameRegex);
+    if (!m) continue;
+
+    const [_, label, bin, date] = m;
+    const c = labelToComplexity(label);
+    if (!c) continue;
+
+    pools[c][bin].push({ file: name, date });
+  }
+
+  // Optional: shuffle each bin pool
+  for (const c of ["LC", "MC", "HC"]) {
+    for (const b of ["0.0", "2.3", "4.6", "6.9", "9.2"]) {
+      pools[c][b].sort(() => 0.5 - Math.random());
+    }
+  }
+return pools;
+}
+</script>
+
+<script>
     const firebaseConfig = {
       apiKey: "AIzaSyBuOEzTSSXabU0eFbPfddaW5RYtapd-rBM",
       authDomain: "calcium-firefly-441800-b9.firebaseapp.com",
@@ -355,20 +416,6 @@
         Q3: "Bottom Left",
         Q4: "Bottom Right"
     };
-    const trialGIFs = {
-        LC: [],
-        MC: [],
-        HC: []
-    };
-    for (let c of complexities) {
-        for (let b of binnings) {
-        for (let i = 1; i <= 5; i++) {
-            const fname = `${c}_${b}_${i}_rot0.gif`;
-            if (!trialGIFs[c]) trialGIFs[c] = [];
-            trialGIFs[c].push(fname);
-        }
-        }
-    }
 
     function hideLoader() {
         const loader = document.getElementById('gif-loader');
@@ -390,20 +437,16 @@
         return 'Q4'; // Bottom-right
     }
 
-    function getRandomGIF() {
-        const allGifs = Object.values(trialGIFs).flat();
-        return allGifs[Math.floor(Math.random() * allGifs.length)];
-    }
-
     function generateTrials() {
-        const complexities = ['LC', 'MC', 'HC'];
+
         const allGIFsByComplexity = { LC: [], MC: [], HC: [] };
-        for (let c of complexities) {
-            for (let b of ['0.0', '2.3', '4.6', '6.9', '9.2']) {
-                for (let i = 1; i <= 5; i++) {
-                    allGIFsByComplexity[c].push(`${c}_${b}_${i}_rot0.gif`);
-                }
-            }
+
+        for (const c of ["LC","MC","HC"]) {
+        for (const b of ["0.0","2.3","4.6","6.9","9.2"]) {
+            // Push filenames (just the file string) into the list
+            const items = (STIM_POOLS?.[c]?.[b] || []).map(x => x.file);
+            allGIFsByComplexity[c].push(...items);
+        }
         }
 
         // Shuffle each complexity pool
@@ -507,15 +550,30 @@
                 surveyStarted:     new Date().toISOString()
             }, { merge: true });
 
+            // ✅ Load stimuli dynamically ONCE, then generate trials
+            STIM_POOLS = await loadStimuliFromGitHub();
+
+            // sanity check
+            const total = ["LC","MC","HC"].reduce((sum, c) => {
+            return sum + ["0.0","2.3","4.6","6.9","9.2"].reduce((s,b) => s + (STIM_POOLS[c][b].length), 0);
+            }, 0);
+
+            console.log("Total discovered GIFs:", total);
+
+            if (total < 60) {
+            alert("Not enough GIFs found in Survey Data Updated. Please verify filenames + folder.");
+            return;
+            }
+
             trials = generateTrials();
             document.getElementById('start-screen').style.display = 'none';
             updateProgressBar();
             showTrial();
 
-        } catch (error) {
-            console.error("Error assigning group:", error);
-            alert("There was an error starting the survey. Please check your internet connection and try again.");
-        }
+            } catch (error) {
+                console.error("Error starting survey:", error);
+                alert("An error occurred while starting the survey. Please try again later.");
+            }
     }
 
     let clickEnabled = false;
@@ -550,7 +608,8 @@
         
         gif.style.cursor = clickQuestionTypes.includes(trial.question) ? 'crosshair' : 'default';
 
-        gif.src = `https://raw.githubusercontent.com/sparimi4/git-survey-hosting/main/Survey%20Data/${trial.gif}`;
+        gif.src = `${BASE_GIF_URL}/${trial.gif}`;
+        // gif.src = `https://raw.githubusercontent.com/sparimi4/git-survey-hosting/main/Survey%20Data/${trial.gif}`;
         // gif.src = `https://raw.githubusercontent.com/sparimi4/git-survey-hosting/main/Survey%20Data/${trial.gif}?t=${Date.now()}`;
         
         const interaction = document.getElementById('interaction-area');
@@ -791,7 +850,7 @@
 
     function updateProgressBar() {
         const progressBar = document.getElementById('progress-bar');
-        progressBar.innerHTML = ''; // Clear existing
+        progressBar.innerHTML = '<img src="ASU-logo.png" alt="ASU Logo" class="asu-logo">';
 
         const visibleTrials = getVisibleTrials(); // only non-attention-check trials
         const currentVisibleIndex = getVisibleProgressIndex();
@@ -812,8 +871,8 @@
             }
 
             progressBar.appendChild(progressItem);
-            }
-        }
+            }        
+    }
 
     async function submitResponse() {
         const trial = trials[trialIndex];
@@ -932,9 +991,6 @@
         alert("There was an error saving your response. Please check your internet connection.");
     }
     }
-
-
-
 </script>
 
 <!-- <script>
@@ -967,4 +1023,4 @@
 </script> -->
 
 </body>
-</html>  
+</html>
