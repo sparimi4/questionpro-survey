@@ -284,6 +284,53 @@
         </div>
     </div>
 
+    <div id="demographics-screen" style="display:none;">
+        <h2>Demographic Information</h2>
+        <p>Please answer a few optional demographic questions before starting the survey.</p>
+
+        <div style="max-width: 600px; text-align: left;">
+            
+            <label><strong>Age Group:</strong></label><br>
+            <select id="age-group">
+                <option value="">Select</option>
+                <option>18–24</option>
+                <option>25–34</option>
+                <option>35–44</option>
+                <option>45–54</option>
+                <option>55+</option>
+                <option>Prefer not to say</option>
+            </select>
+            <br><br>
+
+            <label><strong>Gender:</strong></label><br>
+            <select id="gender">
+                <option value="">Select</option>
+                <option>Female</option>
+                <option>Male</option>
+                <option>Non-binary</option>
+                <option>Prefer to self-describe</option>
+                <option>Prefer not to say</option>
+            </select>
+            <br><br>
+
+            <label><strong>Education Level:</strong></label><br>
+            <select id="education">
+                <option value="">Select</option>
+                <option>High School</option>
+                <option>Undergraduate Student</option>
+                <option>Bachelor’s Degree</option>
+                <option>Master’s Degree</option>
+                <option>PhD / Doctorate</option>
+                <option>Other</option>
+                <option>Prefer not to say</option>
+            </select>
+
+            <div class="center">
+                <button onclick="submitDemographics()">Continue to Survey</button>
+            </div>
+        </div>
+    </div>
+
     <div id="trial-screen">
         <!-- <h3>Trial <span id="trial-number"></h3> -->
         <p id="question-prompt"><strong>Question:</strong></p>
@@ -536,6 +583,11 @@ return pools;
         }
         participantID = asuidInput;
 
+        // Move to demographics screen instead of starting trials immediately
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('demographics-screen').style.display = 'block';
+        return;
+
         try {
             // Atomically assign Latin Square group
             const counterRef = db.collection("meta").doc("participant_counter");
@@ -585,6 +637,61 @@ return pools;
                 console.error("Error starting survey:", error);
                 alert("An error occurred while starting the survey. Please try again later.");
             }
+    }
+
+    async function submitDemographics() {
+        const age = document.getElementById('age-group').value;
+        const gender = document.getElementById('gender').value;
+        const education = document.getElementById('education').value;
+
+        // (Optional) Require at least age selection
+        if (!age) {
+            alert("Please select your age group to continue.");
+            return;
+        }
+
+        try {
+            // Atomically assign Latin Square group (same logic as before)
+            const counterRef = db.collection("meta").doc("participant_counter");
+            let assignedGroup = -1;
+            let assignedCount = -1;
+
+            await db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(counterRef);
+                let currentCount = doc.exists ? (doc.data().count || 0) : 0;
+                assignedCount = currentCount + 1;
+                assignedGroup = currentCount % 5;
+                transaction.set(counterRef, { count: assignedCount }, { merge: true });
+            });
+
+            participantGroup = assignedGroup;
+
+            // Save demographics + metadata to Firebase
+            await db.collection("survey_responses").doc(participantID).set({
+                participantID: participantID,
+                participantNumber: assignedCount,
+                latinSquareGroup: assignedGroup,
+                demographics: {
+                    ageGroup: age,
+                    gender: gender,
+                    education: education
+                },
+                surveyStarted: new Date().toISOString()
+            }, { merge: true });
+
+            // Load stimuli AFTER demographics
+            STIM_POOLS = await loadStimuliFromGitHub();
+
+            trials = generateTrials();
+
+            document.getElementById('demographics-screen').style.display = 'none';
+            updateProgressBar();
+            showTrial();
+
+        } catch (error) {
+            console.error("Error starting survey:", error);
+            alert("An error occurred while starting the survey. Please try again.");
+        }
     }
 
     let clickEnabled = false;
